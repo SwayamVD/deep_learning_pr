@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Devanagari — Character Recognition</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="shortcut icon" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════════════════════════
+       NAV
+  ══════════════════════════════════════════════════════════ -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <a class="nav-brand" href="#" onclick="showPage('classifier')">
+        <span class="brand-mark">अ</span>
+        <span class="brand-name">Devanagari</span>
+      </a>
+      <div class="nav-links">
+        <a class="nav-link active" data-page="classifier" onclick="showPage('classifier')">Classifier</a>
+        <a class="nav-link" data-page="dataset"    onclick="showPage('dataset')">Dataset</a>
+        <a class="nav-link" data-page="arch"       onclick="showPage('arch')">Architecture</a>
+        <a class="nav-link" data-page="analysis"   onclick="showPage('analysis')">Analysis</a>
+      </div>
+      <div class="pill" id="statusPill">
+        <span class="pill-dot"></span>
+        <span id="statusText">Connecting…</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 1 — CLASSIFIER
+  ══════════════════════════════════════════════════════════ -->
+  <div id="page-classifier" class="page active">
+
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="hero-badge">ResNet-18 · 46 classes · 99.48% accuracy</div>
+        <h1 class="hero-title">Devanagari<br/>Character Recognition</h1>
+        <p class="hero-sub">Draw or upload a handwritten Devanagari character.<br/>The model classifies it instantly across 46 classes.</p>
+      </div>
+    </section>
+
+    <section class="app-section">
+      <div class="app-grid">
+
+        <!-- Input -->
+        <div class="card input-card">
+          <div class="card-head">
+            <span class="card-label">Input</span>
+            <div class="seg">
+              <button class="seg-btn active" onclick="switchTab('draw')">Draw</button>
+              <button class="seg-btn" onclick="switchTab('upload')">Upload</button>
+            </div>
+          </div>
+
+          <div id="drawSection" class="tab active">
+            <div class="canvas-shell">
+              <canvas id="drawCanvas" width="320" height="320"></canvas>
+              <div class="canvas-guide" id="canvasGuide">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                <span>Draw here</span>
+              </div>
+            </div>
+            <div class="draw-controls">
+              <div class="brush-row">
+                <span class="ctrl-label">Brush</span>
+                <input type="range" id="brushSize" min="6" max="32" value="32" class="slider"/>
+                <span class="ctrl-val" id="brushSizeVal">32</span>
+              </div>
+              <button class="icon-btn" onclick="clearCanvas()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div id="uploadSection" class="tab">
+            <div class="dropzone" id="dropzone"
+                 ondragover="event.preventDefault();this.classList.add('over')"
+                 ondragleave="this.classList.remove('over')"
+                 ondrop="handleDrop(event)">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <p class="drop-title">Drop image here</p>
+              <p class="drop-sub">or <label class="inline-link" for="fileInput">browse</label></p>
+              <input type="file" id="fileInput" accept="image/*" hidden onchange="handleFileSelect(event)"/>
+            </div>
+            <div id="uploadPreview" class="upload-preview hidden">
+              <img id="previewImg" src="" alt="Preview"/>
+              <div class="preview-meta">
+                <span id="previewName" class="preview-name">image.png</span>
+                <button class="text-btn" onclick="clearUpload()">Remove</button>
+              </div>
+            </div>
+          </div>
+
+          <button class="classify-btn" id="classifyBtn" onclick="classify()">
+            <span id="classifyBtnText">Classify</span>
+            <span id="classifyBtnSpinner" class="btn-spinner hidden"></span>
+          </button>
+        </div>
+
+        <!-- Result -->
+        <div class="card result-card">
+          <div class="card-head"><span class="card-label">Result</span></div>
+          <div id="resultsIdle" class="state-idle">
+            <div class="idle-chars" aria-hidden="true"><span>क</span><span>ख</span><span>ग</span><span>म</span><span>न</span><span>र</span></div>
+            <p class="idle-text">Draw or upload a character to classify</p>
+          </div>
+          <div id="resultsError" class="state-error hidden">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p id="errorMessage">Something went wrong</p>
+          </div>
+          <div id="resultsContent" class="hidden">
+            <div class="winner">
+              <div class="winner-glyph" id="predGlyph">क</div>
+              <div class="winner-info">
+                <div class="winner-name" id="predDisplay">क (Ka)</div>
+                <div class="winner-label" id="predLabel">character_01_ka</div>
+                <div class="conf-track"><div class="conf-fill" id="predConfFill"></div></div>
+                <div class="conf-num" id="predConfNum">0%</div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="section-title">Top predictions</div>
+            <div class="top5" id="top5"></div>
+            <div class="divider"></div>
+            <div class="section-title">All classes</div>
+            <div class="dist" id="dist"></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-bar">
+      <div class="stats-inner">
+        <div class="stat"><span class="stat-num">99.48%</span><span class="stat-lbl">Test Accuracy</span></div>
+        <div class="stat-sep"></div>
+        <div class="stat"><span class="stat-num">92,000</span><span class="stat-lbl">Training Images</span></div>
+        <div class="stat-sep"></div>
+        <div class="stat"><span class="stat-num">46</span><span class="stat-lbl">Classes</span></div>
+        <div class="stat-sep"></div>
+        <div class="stat"><span class="stat-num">32×32</span><span class="stat-lbl">Input Size</span></div>
+        <div class="stat-sep"></div>
+        <div class="stat"><span class="stat-num">10</span><span class="stat-lbl">Epochs</span></div>
+      </div>
+    </section>
+
+    <!-- Char reference -->
+    <section class="chars-section">
+      <div class="chars-inner">
+        <div class="section-header">
+          <h2 class="section-heading">Supported Characters</h2>
+          <p class="section-desc">36 Devanagari consonants + 10 digits</p>
+        </div>
+        <div class="char-grid" id="charGrid"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 2 — DATASET
+  ══════════════════════════════════════════════════════════ -->
+  <div id="page-dataset" class="page">
+    <div class="page-hero">
+      <div class="page-hero-inner">
+        <div class="hero-badge">Kaggle Dataset</div>
+        <h1 class="page-title">Dataset Overview</h1>
+        <p class="page-sub">Everything about the Devanagari Character Set used to train the model.</p>
+      </div>
+    </div>
+
+    <div class="content-wrap">
+
+      <!-- Overview cards -->
+      <div class="info-cards">
+        <div class="info-card accent">
+          <div class="ic-icon">🗂️</div>
+          <div class="ic-val">92,000</div>
+          <div class="ic-lbl">Total Images</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">📁</div>
+          <div class="ic-val">46</div>
+          <div class="ic-lbl">Classes</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">🖼️</div>
+          <div class="ic-val">2,000</div>
+          <div class="ic-lbl">Images / Class</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">📐</div>
+          <div class="ic-val">32×32</div>
+          <div class="ic-lbl">Image Size</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">🎨</div>
+          <div class="ic-val">Grayscale</div>
+          <div class="ic-lbl">Color Mode</div>
+        </div>
+        <div class="info-card">
+          <div class="ic-icon">📄</div>
+          <div class="ic-val">PNG</div>
+          <div class="ic-lbl">File Format</div>
+        </div>
+      </div>
+
+      <!-- Two-col layout -->
+      <div class="two-col">
+
+        <!-- Left col -->
+        <div class="col">
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Dataset Identity</h3>
+            <table class="ds-table">
+              <tr><td class="dt-key">Name</td><td class="dt-val">Devanagari Character Set</td></tr>
+              <tr><td class="dt-key">Source</td><td class="dt-val"><a href="https://www.kaggle.com/datasets/rishianand/devanagari-character-set" target="_blank" class="link">kaggle.com — rishianand</a></td></tr>
+              <tr><td class="dt-key">Version</td><td class="dt-val">4</td></tr>
+              <tr><td class="dt-key">Download size</td><td class="dt-val">118 MB</td></tr>
+              <tr><td class="dt-key">Script</td><td class="dt-val">Devanagari (Hindi)</td></tr>
+              <tr><td class="dt-key">Language</td><td class="dt-val">Hindi / Sanskrit</td></tr>
+            </table>
+          </div>
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Input Format</h3>
+            <table class="ds-table">
+              <tr><td class="dt-key">Original size</td><td class="dt-val">32 × 32 pixels</td></tr>
+              <tr><td class="dt-key">Color mode</td><td class="dt-val">Grayscale (L mode, 1 channel)</td></tr>
+              <tr><td class="dt-key">Background</td><td class="dt-val">Black (pixel value ≈ 0)</td></tr>
+              <tr><td class="dt-key">Foreground</td><td class="dt-val">White (pixel value ≈ 255)</td></tr>
+              <tr><td class="dt-key">Normalization</td><td class="dt-val">Pixel ÷ 255 → [0.0, 1.0]</td></tr>
+              <tr><td class="dt-key">Model input shape</td><td class="dt-val">(batch, 32, 32, 1)</td></tr>
+              <tr><td class="dt-key">Label encoding</td><td class="dt-val">Integer index (0–45)</td></tr>
+            </table>
+          </div>
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Train / Val / Test Split</h3>
+            <div class="split-vis">
+              <div class="split-bar">
+                <div class="sb-train" style="width:60%"><span>Train</span></div>
+                <div class="sb-val"   style="width:20%"><span>Val</span></div>
+                <div class="sb-test"  style="width:20%"><span>Test</span></div>
+              </div>
+              <div class="split-legend">
+                <div class="sl-item"><span class="sl-dot train"></span>Train — 60% · 55,200 images</div>
+                <div class="sl-item"><span class="sl-dot val"></span>Validation — 20% · 18,400 images</div>
+                <div class="sl-item"><span class="sl-dot test"></span>Test — 20% · 18,400 images</div>
+              </div>
+            </div>
+            <table class="ds-table" style="margin-top:16px">
+              <tr><td class="dt-key">Batch size</td><td class="dt-val">32</td></tr>
+              <tr><td class="dt-key">Shuffle</td><td class="dt-val">Disabled (commented out in code)</td></tr>
+              <tr><td class="dt-key">Split method</td><td class="dt-val">Sequential .take() / .skip()</td></tr>
+            </table>
+          </div>
+
+        </div>
+
+        <!-- Right col -->
+        <div class="col">
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Class Categories</h3>
+            <div class="cat-group">
+              <div class="cat-label">Consonants (36)</div>
+              <div class="cat-chips">
+                <span class="chip">क Ka</span><span class="chip">ख Kha</span><span class="chip">ग Ga</span><span class="chip">घ Gha</span>
+                <span class="chip">ङ Kna</span><span class="chip">च Cha</span><span class="chip">छ Chha</span><span class="chip">ज Ja</span>
+                <span class="chip">झ Jha</span><span class="chip">ञ Yna</span><span class="chip">ट Taamatar</span><span class="chip">ठ Thaa</span>
+                <span class="chip">ड Daa</span><span class="chip">ढ Dhaa</span><span class="chip">ण Adna</span><span class="chip">त Tabala</span>
+                <span class="chip">थ Tha</span><span class="chip">द Da</span><span class="chip">ध Dha</span><span class="chip">न Na</span>
+                <span class="chip">प Pa</span><span class="chip">फ Pha</span><span class="chip">ब Ba</span><span class="chip">भ Bha</span>
+                <span class="chip">म Ma</span><span class="chip">य Yaw</span><span class="chip">र Ra</span><span class="chip">ल La</span>
+                <span class="chip">व Waw</span><span class="chip">श Motosaw</span><span class="chip">ष Petchiryakha</span><span class="chip">स Patalosaw</span>
+                <span class="chip">ह Ha</span><span class="chip">क्ष Chhya</span><span class="chip">त्र Tra</span><span class="chip">ज्ञ Gya</span>
+              </div>
+            </div>
+            <div class="cat-group" style="margin-top:16px">
+              <div class="cat-label">Digits (10)</div>
+              <div class="cat-chips">
+                <span class="chip digit">० 0</span><span class="chip digit">१ 1</span><span class="chip digit">२ 2</span><span class="chip digit">३ 3</span>
+                <span class="chip digit">४ 4</span><span class="chip digit">५ 5</span><span class="chip digit">६ 6</span><span class="chip digit">७ 7</span>
+                <span class="chip digit">८ 8</span><span class="chip digit">९ 9</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Directory Structure</h3>
+            <div class="code-block">
+<span class="c-dir">Images/Images/</span>
+├── <span class="c-dir">character_01_ka/</span>        <span class="c-cmt"># 2000 images</span>
+├── <span class="c-dir">character_02_kha/</span>
+├── <span class="c-dir">character_03_ga/</span>
+│   └── ... (36 consonant folders)
+├── <span class="c-dir">digit_0/</span>               <span class="c-cmt"># 2000 images</span>
+├── <span class="c-dir">digit_1/</span>
+│   └── ... (10 digit folders)
+└── <span class="c-file">*.png</span>                  <span class="c-cmt"># e.g. 87320.png</span>
+            </div>
+          </div>
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Loading Code</h3>
+            <div class="code-block">
+<span class="c-kw">dataset</span> = tf.keras.utils.<span class="c-fn">image_dataset_from_directory</span>(
+  data_dir,
+  image_size=<span class="c-str">(32, 32)</span>,
+  color_mode=<span class="c-str">"grayscale"</span>,
+  batch_size=<span class="c-num">32</span>,
+  label_mode=<span class="c-str">"int"</span>
+)
+<span class="c-cmt"># Normalize to [0, 1]</span>
+dataset = dataset.<span class="c-fn">map</span>(<span class="c-kw">lambda</span> X, y: (X / <span class="c-num">255.0</span>, y))
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 3 — ARCHITECTURE
+  ══════════════════════════════════════════════════════════ -->
+  <div id="page-arch" class="page">
+    <div class="page-hero">
+      <div class="page-hero-inner">
+        <div class="hero-badge">Model Design</div>
+        <h1 class="page-title">ResNet-18 Architecture</h1>
+        <p class="page-sub">A custom ResNet-18 variant adapted for 32×32 grayscale Devanagari character classification.</p>
+      </div>
+    </div>
+
+    <div class="content-wrap">
+
+      <!-- Summary cards -->
+      <div class="info-cards">
+        <div class="info-card accent"><div class="ic-icon">🧱</div><div class="ic-val">18</div><div class="ic-lbl">Layers (depth)</div></div>
+        <div class="info-card"><div class="ic-icon">🔁</div><div class="ic-val">8</div><div class="ic-lbl">Residual Blocks</div></div>
+        <div class="info-card"><div class="ic-icon">📥</div><div class="ic-val">32×32×1</div><div class="ic-lbl">Input Shape</div></div>
+        <div class="info-card"><div class="ic-icon">📤</div><div class="ic-val">46</div><div class="ic-lbl">Output Classes</div></div>
+        <div class="info-card"><div class="ic-icon">⚙️</div><div class="ic-val">Adam</div><div class="ic-lbl">Optimizer</div></div>
+        <div class="info-card"><div class="ic-icon">📉</div><div class="ic-val">CCE</div><div class="ic-lbl">Loss Function</div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="col">
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Network Flow</h3>
+            <div class="arch-flow">
+              <div class="af-block input">
+                <div class="af-title">Input</div>
+                <div class="af-shape">(32, 32, 1)</div>
+                <div class="af-desc">Grayscale image</div>
+              </div>
+              <div class="af-arrow">↓</div>
+              <div class="af-block stem">
+                <div class="af-title">Stem</div>
+                <div class="af-shape">Conv2D(64, 8×8, stride=2)</div>
+                <div class="af-desc">BatchNorm → ReLU → MaxPool</div>
+              </div>
+              <div class="af-arrow">↓</div>
+              <div class="af-block stage">
+                <div class="af-title">Stage 1</div>
+                <div class="af-shape">512 filters</div>
+                <div class="af-desc">BasicBlock × 2, stride=2</div>
+              </div>
+              <div class="af-arrow">↓</div>
+              <div class="af-block stage">
+                <div class="af-title">Stage 2</div>
+                <div class="af-shape">256 filters</div>
+                <div class="af-desc">BasicBlock × 2, stride=2</div>
+              </div>
+              <div class="af-arrow">↓</div>
+              <div class="af-block stage">
+                <div class="af-title">Stage 3</div>
+                <div class="af-shape">128 filters</div>
+                <div class="af-desc">BasicBlock × 2, stride=2</div>
+              </div>
+              <div class="af-arrow">↓</div>
+              <div class="af-block stage">
+                <div class="af-title">Stage 4</div>
+                <div class="af-shape">64 filters</div>
+                <div class="af-desc">BasicBlock × 2, stride=1</div>
+              </div>
+              <div class="af-arrow">↓</div>
+              <div class="af-block head">
+                <div class="af-title">Head</div>
+                <div class="af-shape">GAP → Dense(46)</div>
+                <div class="af-desc">GlobalAvgPool → Softmax</div>
+              </div>
+              <div class="af-arrow">↓</div>
+              <div class="af-block output">
+                <div class="af-title">Output</div>
+                <div class="af-shape">46-class probabilities</div>
+                <div class="af-desc">Softmax activation</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+        <div class="col">
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Residual Block (BasicBlock)</h3>
+            <div class="resblock-vis">
+              <div class="rb-main">
+                <div class="rb-node">Input x</div>
+                <div class="rb-arrow">↓</div>
+                <div class="rb-node conv">Conv2D(F, 3×3, stride=s)</div>
+                <div class="rb-arrow">↓</div>
+                <div class="rb-node bn">BatchNorm + ReLU</div>
+                <div class="rb-arrow">↓</div>
+                <div class="rb-node conv">Conv2D(F, 3×3, stride=1)</div>
+                <div class="rb-arrow">↓</div>
+                <div class="rb-node bn">BatchNorm</div>
+                <div class="rb-arrow">↓</div>
+                <div class="rb-node add">Add (+ shortcut)</div>
+                <div class="rb-arrow">↓</div>
+                <div class="rb-node out">ReLU → Output</div>
+              </div>
+              <div class="rb-skip">
+                <div class="rb-skip-line"></div>
+                <div class="rb-skip-label">Shortcut<br/>(identity or<br/>1×1 Conv)</div>
+              </div>
+            </div>
+            <p class="arch-note">If stride ≠ 1 or channels change, the shortcut uses a 1×1 Conv2D + BatchNorm projection. Otherwise it's a direct identity connection.</p>
+          </div>
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Layer Count Breakdown</h3>
+            <div class="layer-summary">
+              <div class="ls-row accent">
+                <div class="ls-icon">🔲</div>
+                <div class="ls-info">
+                  <div class="ls-name">Convolutional Layers (Conv2D)</div>
+                  <div class="ls-sub">1 stem + 16 block convs + 4 projection shortcuts</div>
+                </div>
+                <div class="ls-count">21</div>
+              </div>
+              <div class="ls-row">
+                <div class="ls-icon">⚡</div>
+                <div class="ls-info">
+                  <div class="ls-name">Fully-Connected Layers (Dense)</div>
+                  <div class="ls-sub">Single classification head after GAP</div>
+                </div>
+                <div class="ls-count">1</div>
+              </div>
+              <div class="ls-row">
+                <div class="ls-icon">📊</div>
+                <div class="ls-info">
+                  <div class="ls-name">Batch Normalization Layers</div>
+                  <div class="ls-sub">1 stem + 16 main + 4 projection shortcuts</div>
+                </div>
+                <div class="ls-count">21</div>
+              </div>
+              <div class="ls-row">
+                <div class="ls-icon">〰️</div>
+                <div class="ls-info">
+                  <div class="ls-name">ReLU Activations</div>
+                  <div class="ls-sub">1 stem + 2 per block × 8 blocks</div>
+                </div>
+                <div class="ls-count">17</div>
+              </div>
+              <div class="ls-row">
+                <div class="ls-icon">🎯</div>
+                <div class="ls-info">
+                  <div class="ls-name">Output Neurons</div>
+                  <div class="ls-sub">Dense(46, softmax) — one per character class</div>
+                </div>
+                <div class="ls-count">46</div>
+              </div>
+              <div class="ls-row">
+                <div class="ls-icon">🔽</div>
+                <div class="ls-info">
+                  <div class="ls-name">GlobalAveragePooling2D</div>
+                  <div class="ls-sub">Reduces 1×1×64 feature map → flat 64-dim vector</div>
+                </div>
+                <div class="ls-count">1</div>
+              </div>
+            </div>
+
+            <div class="divider-sm"></div>
+
+            <h4 class="ds-sub-title">All 21 Conv2D Layers</h4>
+            <div class="conv-table-wrap">
+              <table class="conv-table">
+                <thead>
+                  <tr><th>#</th><th>Location</th><th>Filters</th><th>Kernel</th><th>Stride</th></tr>
+                </thead>
+                <tbody>
+                  <tr class="ct-stem"><td>1</td><td>Stem</td><td>64</td><td>8×8</td><td>2</td></tr>
+                  <tr class="ct-block"><td>2</td><td>Block 1 (512) — conv1</td><td>512</td><td>3×3</td><td>2</td></tr>
+                  <tr class="ct-block"><td>3</td><td>Block 1 (512) — conv2</td><td>512</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-proj"><td>4</td><td>Block 1 (512) — projection ↗</td><td>512</td><td>1×1</td><td>2</td></tr>
+                  <tr class="ct-block"><td>5</td><td>Block 2 (512) — conv1</td><td>512</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>6</td><td>Block 2 (512) — conv2</td><td>512</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>7</td><td>Block 3 (256) — conv1</td><td>256</td><td>3×3</td><td>2</td></tr>
+                  <tr class="ct-block"><td>8</td><td>Block 3 (256) — conv2</td><td>256</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-proj"><td>9</td><td>Block 3 (256) — projection ↗</td><td>256</td><td>1×1</td><td>2</td></tr>
+                  <tr class="ct-block"><td>10</td><td>Block 4 (256) — conv1</td><td>256</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>11</td><td>Block 4 (256) — conv2</td><td>256</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>12</td><td>Block 5 (128) — conv1</td><td>128</td><td>3×3</td><td>2</td></tr>
+                  <tr class="ct-block"><td>13</td><td>Block 5 (128) — conv2</td><td>128</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-proj"><td>14</td><td>Block 5 (128) — projection ↗</td><td>128</td><td>1×1</td><td>2</td></tr>
+                  <tr class="ct-block"><td>15</td><td>Block 6 (128) — conv1</td><td>128</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>16</td><td>Block 6 (128) — conv2</td><td>128</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>17</td><td>Block 7 (64) — conv1</td><td>64</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>18</td><td>Block 7 (64) — conv2</td><td>64</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-proj"><td>19</td><td>Block 7 (64) — projection ↗</td><td>64</td><td>1×1</td><td>1</td></tr>
+                  <tr class="ct-block"><td>20</td><td>Block 8 (64) — conv1</td><td>64</td><td>3×3</td><td>1</td></tr>
+                  <tr class="ct-block"><td>21</td><td>Block 8 (64) — conv2</td><td>64</td><td>3×3</td><td>1</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="ct-legend">
+              <span class="ctl-item stem">Stem</span>
+              <span class="ctl-item block">Block Conv</span>
+              <span class="ctl-item proj">Projection Shortcut</span>
+            </div>
+
+            <div class="divider-sm"></div>
+
+            <h4 class="ds-sub-title">Dense Layer &amp; Output</h4>
+            <table class="ds-table">
+              <tr><td class="dt-key">Layer</td><td class="dt-val"><code>Dense(46, activation="softmax")</code></td></tr>
+              <tr><td class="dt-key">Input shape</td><td class="dt-val">(64,) — from GlobalAveragePooling2D</td></tr>
+              <tr><td class="dt-key">Output neurons</td><td class="dt-val"><strong>46</strong> — one per character class</td></tr>
+              <tr><td class="dt-key">Activation</td><td class="dt-val">Softmax (probabilities sum to 1.0)</td></tr>
+              <tr><td class="dt-key">Bias</td><td class="dt-val">Yes (default — only the Dense layer has bias)</td></tr>
+              <tr><td class="dt-key">Parameters</td><td class="dt-val">64 × 46 + 46 = <strong>2,990</strong></td></tr>
+            </table>
+          </div>
+            <div class="design-list">
+              <div class="dl-item">
+                <div class="dl-dot saffron"></div>
+                <div><strong>Inverted filter progression</strong> — Stages go 512→256→128→64 (standard ResNet-18 goes 64→128→256→512). Unusual but achieves 99.48%.</div>
+              </div>
+              <div class="dl-item">
+                <div class="dl-dot"></div>
+                <div><strong>Large stem kernel</strong> — 8×8 conv instead of the standard 7×7, adapted for 32×32 input.</div>
+              </div>
+              <div class="dl-item">
+                <div class="dl-dot"></div>
+                <div><strong>No bias in convolutions</strong> — <code>use_bias=False</code> throughout; BatchNorm handles the bias term.</div>
+              </div>
+              <div class="dl-item">
+                <div class="dl-dot"></div>
+                <div><strong>Global Average Pooling</strong> — Replaces fully connected layers, reducing parameters and overfitting.</div>
+              </div>
+              <div class="dl-item">
+                <div class="dl-dot saffron"></div>
+                <div><strong>Adam optimizer</strong> — Default learning rate (1e-3) with sparse categorical crossentropy loss.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ds-card">
+            <h3 class="ds-card-title">Model Code Snippet</h3>
+            <div class="code-block">
+<span class="c-kw">def</span> <span class="c-fn">basic_block</span>(x, filters, stride):
+  shortcut = x
+  out = Conv2D(filters, <span class="c-num">3</span>, strides=stride,
+               padding=<span class="c-str">"same"</span>, use_bias=<span class="c-kw">False</span>)(x)
+  out = BatchNormalization()(out)
+  out = ReLU()(out)
+  out = Conv2D(filters, <span class="c-num">3</span>, strides=<span class="c-num">1</span>,
+               padding=<span class="c-str">"same"</span>, use_bias=<span class="c-kw">False</span>)(out)
+  out = BatchNormalization()(out)
+  <span class="c-kw">if</span> stride != <span class="c-num">1</span> <span class="c-kw">or</span> x.shape[-<span class="c-num">1</span>] != filters:
+    shortcut = Conv2D(filters, <span class="c-num">1</span>,
+                      strides=stride)(shortcut)
+    shortcut = BatchNormalization()(shortcut)
+  <span class="c-kw">return</span> ReLU()(Add()([out, shortcut]))
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       PAGE 4 — ANALYSIS
+  ══════════════════════════════════════════════════════════ -->
+  <div id="page-analysis" class="page">
+    <div class="page-hero">
+      <div class="page-hero-inner">
+        <div class="hero-badge">Model Performance</div>
+        <h1 class="page-title">Training Analysis</h1>
+        <p class="page-sub">Training curves, accuracy metrics, and confusion matrix analysis.</p>
+      </div>
+    </div>
+
+    <div class="content-wrap">
+
+      <!-- Final metrics -->
+      <div class="info-cards">
+        <div class="info-card accent"><div class="ic-icon">🎯</div><div class="ic-val">99.48%</div><div class="ic-lbl">Test Accuracy</div></div>
+        <div class="info-card"><div class="ic-icon">📊</div><div class="ic-val">99.42%</div><div class="ic-lbl">Val Accuracy</div></div>
+        <div class="info-card"><div class="ic-icon">📉</div><div class="ic-val">0.0183</div><div class="ic-lbl">Test Loss</div></div>
+        <div class="info-card"><div class="ic-icon">📉</div><div class="ic-val">0.0164</div><div class="ic-lbl">Val Loss (ep.10)</div></div>
+        <div class="info-card"><div class="ic-icon">🔁</div><div class="ic-val">10</div><div class="ic-lbl">Epochs</div></div>
+        <div class="info-card"><div class="ic-icon">⏱️</div><div class="ic-val">~35s</div><div class="ic-lbl">Epoch Duration</div></div>
+      </div>
+
+      <div class="two-col">
+        <div class="col">
+
+          <!-- Training table -->
+          <div class="ds-card">
+            <h3 class="ds-card-title">Epoch-by-Epoch Results</h3>
+            <div class="table-wrap">
+              <table class="epoch-table">
+                <thead>
+                  <tr><th>Epoch</th><th>Train Acc</th><th>Train Loss</th><th>Val Acc</th><th>Val Loss</th></tr>
+                </thead>
+                <tbody>
+                  <tr><td>1</td><td>79.11%</td><td>0.7371</td><td>88.55%</td><td>0.3799</td></tr>
+                  <tr><td>2</td><td>93.03%</td><td>0.2354</td><td>91.18%</td><td>0.2833</td></tr>
+                  <tr><td>3</td><td>95.16%</td><td>0.1653</td><td>93.74%</td><td>0.2166</td></tr>
+                  <tr><td>4</td><td>96.04%</td><td>0.1319</td><td>97.57%</td><td>0.0790</td></tr>
+                  <tr><td>5</td><td>96.78%</td><td>0.1068</td><td>97.58%</td><td>0.0774</td></tr>
+                  <tr><td>6</td><td>97.45%</td><td>0.0846</td><td>97.49%</td><td>0.0763</td></tr>
+                  <tr><td>7</td><td>97.81%</td><td>0.0731</td><td>98.16%</td><td>0.0586</td></tr>
+                  <tr><td>8</td><td>98.17%</td><td>0.0618</td><td>98.55%</td><td>0.0476</td></tr>
+                  <tr><td>9</td><td>98.41%</td><td>0.0548</td><td>98.44%</td><td>0.0499</td></tr>
+                  <tr class="best"><td>10</td><td>98.66%</td><td>0.0465</td><td><strong>99.51%</strong></td><td><strong>0.0164</strong></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Accuracy chart -->
+          <div class="ds-card">
+            <h3 class="ds-card-title">Training Accuracy Curve</h3>
+            <div class="chart-area" id="accChart"></div>
+            <div class="chart-legend">
+              <span class="cl-item"><span class="cl-line train"></span>Train Accuracy</span>
+              <span class="cl-item"><span class="cl-line val"></span>Val Accuracy</span>
+            </div>
+          </div>
+
+        </div>
+        <div class="col">
+
+          <!-- Loss chart -->
+          <div class="ds-card">
+            <h3 class="ds-card-title">Loss Curve</h3>
+            <div class="chart-area" id="lossChart"></div>
+            <div class="chart-legend">
+              <span class="cl-item"><span class="cl-line train"></span>Train Loss</span>
+              <span class="cl-item"><span class="cl-line val"></span>Val Loss</span>
+            </div>
+          </div>
+
+          <!-- Confusion matrix analysis -->
+          <div class="ds-card">
+            <h3 class="ds-card-title">Confusion Matrix Analysis</h3>
+            <p class="ds-note">Based on the 99.48% test accuracy, approximately <strong>96 images</strong> out of 18,400 test images are misclassified.</p>
+
+            <div class="cm-grid" id="cmGrid"></div>
+
+            <div class="design-list" style="margin-top:20px">
+              <div class="dl-item">
+                <div class="dl-dot saffron"></div>
+                <div><strong>Most confused pairs</strong> — visually similar characters like ट/ठ (Taamatar/Thaa), ड/ढ (Daa/Dhaa), and digits ३/७ (3/7) are likely confusion points.</div>
+              </div>
+              <div class="dl-item">
+                <div class="dl-dot"></div>
+                <div><strong>Diagonal dominance</strong> — 99.48% accuracy means the confusion matrix is overwhelmingly diagonal, with near-zero off-diagonal values.</div>
+              </div>
+              <div class="dl-item">
+                <div class="dl-dot"></div>
+                <div><strong>Class balance</strong> — exactly 2,000 images per class ensures no class imbalance bias in the confusion matrix.</div>
+              </div>
+              <div class="dl-item">
+                <div class="dl-dot saffron"></div>
+                <div><strong>Validation vs Test</strong> — val accuracy (99.42%) closely matches test accuracy (99.48%), indicating no overfitting.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Per-class accuracy simulation -->
+          <div class="ds-card">
+            <h3 class="ds-card-title">Estimated Per-Class Accuracy</h3>
+            <p class="ds-note" style="margin-bottom:14px">Based on overall 99.48% accuracy across balanced classes.</p>
+            <div class="per-class" id="perClass"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="brand-mark sm">अ</span>
+      <span>Devanagari Classifier · ResNet-18 · TensorFlow · Mini Project</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

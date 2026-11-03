@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Rounded square background — saffron -->
+  <rect width="64" height="64" rx="14" fill="#e8650a"/>
+
+  <!-- Subtle inner shadow ring -->
+  <rect width="64" height="64" rx="14" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="1.5"/>
+
+  <!-- Devanagari अ glyph -->
+  <text
+    x="50%"
+    y="54%"
+    dominant-baseline="middle"
+    text-anchor="middle"
+    font-family="Noto Sans Devanagari, Mangal, serif"
+    font-size="38"
+    font-weight="700"
+    fill="#ffffff"
+  >अ</text>
+</svg>

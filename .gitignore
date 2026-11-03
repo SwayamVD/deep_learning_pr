@@ -1,0 +1,17 @@
+# Datasets
+**/fashion-mnist_train.csv
+**/fashion-mnist_test.csv
+**/fashion-mnist_test-checkpoint.csv
+**/bloodmnist.npz
+**/emails.csv
+**/*.zip
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
